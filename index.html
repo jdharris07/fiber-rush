@@ -35,316 +35,351 @@
   <div id="score">Score: 0 | Level: 1</div>
   <canvas id="game"></canvas>
 
-  <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
+<script>
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
 
-    const laneCount = 3;
-    let laneHeight = height / laneCount;
-    let playerLane = 1;
-    const playerX = 100;
-    const playerRadius = 20;
+  const laneCount = 3;
+  let laneHeight = height / laneCount;
+  let playerLane = 1;
+  const playerX = 100;
+  const playerRadius = 20;
 
-    let obstacles = [];
-    let baseSpeed = 6;
-    let obstacleSpeed = baseSpeed;
-    let baseSpawnDelay = 60;
-    let spawnDelay = baseSpawnDelay;
-    let spawnTimer = 0;
+  let obstacles = [];
+  let baseSpeed = 4; // Easier Level 1 speed
+  let obstacleSpeed = baseSpeed;
+  let baseSpawnDelay = 80; // Easier Level 1 spawn delay
+  let spawnDelay = baseSpawnDelay;
+  let spawnTimer = 0;
 
-    let score = 0;
-    let level = 1;
-    let gameOver = false;
-    let gameStarted = false;
+  let score = 0;
+  let level = 1;
+  let gameOver = false;
+  let gameStarted = false;
 
-    let lastLanes = [];
-    let bgOffset = 0;
-    let levelTimer;
+  let lastLanes = [];
+  let bgOffset = 0;
+  let levelTimer;
 
-    let bonus = null;
+  let bonus = null;
 
-    let levelUpMessage = '';
-    let levelUpAlpha = 0;
+  let levelUpMessage = '';
+  let levelUpAlpha = 0;
 
-    const playerImage = new Image();
-    playerImage.src = 'image001.png';
+  const playerImage = new Image();
+  playerImage.src = 'image001.png';
 
-    const music = new Audio('backgroundmusic.mp3');
-    music.loop = true;
+  const music = new Audio('backgroundmusic.mp3');
+  music.loop = true;
 
-    function resetGame() {
-      laneHeight = height / laneCount;
-      obstacles = [];
-      playerLane = 1;
-      score = 0;
-      level = 1;
-      obstacleSpeed = baseSpeed;
-      spawnDelay = baseSpawnDelay;
-      spawnTimer = 0;
-      gameOver = false;
-      lastLanes = [];
-      bonus = null;
-      levelUpMessage = '';
-      levelUpAlpha = 0;
+  const learnMoreLink = document.createElement('a');
+  learnMoreLink.href = "https://www.hexadsolutions.com";
+  learnMoreLink.target = "_blank";
+  learnMoreLink.innerText = "Click here to learn more";
+  learnMoreLink.style.position = "absolute";
+  learnMoreLink.style.top = "65%";
+  learnMoreLink.style.left = "50%";
+  learnMoreLink.style.transform = "translateX(-50%)";
+  learnMoreLink.style.color = "#77C043";
+  learnMoreLink.style.fontFamily = "monospace";
+  learnMoreLink.style.fontSize = "20px";
+  learnMoreLink.style.display = "none";
+  learnMoreLink.style.textDecoration = "underline";
+  document.body.appendChild(learnMoreLink);
 
-      clearInterval(levelTimer);
-      levelTimer = setInterval(increaseDifficulty, 10000);
+  function resetGame() {
+    laneHeight = height / laneCount;
+    obstacles = [];
+    playerLane = 1;
+    score = 0;
+    level = 1;
+    obstacleSpeed = baseSpeed;
+    spawnDelay = baseSpawnDelay;
+    spawnTimer = 0;
+    gameOver = false;
+    lastLanes = [];
+    bonus = null;
+    levelUpMessage = '';
+    levelUpAlpha = 0;
 
-      document.getElementById('score').style.display = 'block';
+    learnMoreLink.style.display = "none";
 
-      loop();
-    }
+    clearInterval(levelTimer);
+    levelTimer = setInterval(increaseDifficulty, 10000);
 
-    function increaseDifficulty() {
-      if (gameOver) return;
-      level++;
-      obstacleSpeed += 0.5;
-      spawnDelay = Math.max(20, spawnDelay - 5);
-
-      levelUpMessage = `LEVEL ${level}`;
-      levelUpAlpha = 1;
-
-      spawnBonus();
-    }
-
-    function spawnBonus() {
-      let safeLanes = [0, 1, 2];
-
-      obstacles.forEach(ob => {
-        if (ob.x > width / 2 - 200) {
-          safeLanes = safeLanes.filter(lane => lane !== ob.lane);
-        }
-      });
-
-      if (safeLanes.length > 0) {
-        let lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
-        bonus = {
-          x: width + 30,
-          lane: lane
-        };
-      }
-    }
-
-    function drawBackground() {
-      ctx.fillStyle = '#0a0a0a';
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.strokeStyle = '#222';
-      ctx.lineWidth = 1;
-
-      bgOffset += 2;
-      if (bgOffset > 40) bgOffset = 0;
-
-      for (let x = -40; x < width; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x + bgOffset, 0);
-        ctx.lineTo(x + bgOffset, height);
-        ctx.stroke();
-      }
-    }
-
-    function drawLanes() {
-      for (let i = 1; i < laneCount; i++) {
-        ctx.strokeStyle = '#77C04388';
-        ctx.lineWidth = 4;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#77C043';
-        ctx.beginPath();
-        ctx.moveTo(0, laneHeight * i);
-        ctx.lineTo(width, laneHeight * i);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
-    }
-
-    function drawPlayer() {
-      const centerY = laneHeight * (playerLane + 0.5);
-      const imgSize = playerRadius * 3.5;
-      ctx.drawImage(playerImage, playerX - imgSize / 2, centerY - imgSize / 2, imgSize, imgSize);
-    }
-
-    function getObstacleColor() {
-      const hue = (score * 0.1 + level * 40) % 60 + 90;
-      return `hsl(${hue}, 80%, 50%)`;
-    }
-
-    function drawObstacle(ob) {
-      let gradient = ctx.createLinearGradient(ob.x, 0, ob.x + 30, 0);
-      gradient.addColorStop(0, '#66cc33');
-      gradient.addColorStop(1, '#88ff66');
-
-      ctx.fillStyle = gradient;
-      ctx.shadowColor = '#77C043';
-      ctx.shadowBlur = 15;
-      ctx.fillRect(ob.x, laneHeight * ob.lane + 10, 30, laneHeight - 20);
-      ctx.shadowBlur = 0;
-    }
-
-    function drawBonus() {
-      if (!bonus) return;
-
-      const hue = (score * 2) % 360;
-      ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-      ctx.shadowColor = ctx.fillStyle;
-      ctx.shadowBlur = 15;
-
-      ctx.beginPath();
-      ctx.rect(bonus.x, laneHeight * bonus.lane + laneHeight / 2 - 15, 30, 30);
-      ctx.fill();
-
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px monospace';
-      ctx.fillText("SUB", bonus.x + 4, laneHeight * bonus.lane + laneHeight / 2 + 4);
-    }
-
-    function drawLevelUpMessage() {
-      if (levelUpAlpha > 0) {
-        ctx.save();
-        ctx.globalAlpha = levelUpAlpha;
-        ctx.fillStyle = '#77C043';
-        ctx.font = '48px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(levelUpMessage, width / 2, height / 2);
-        ctx.restore();
-        levelUpAlpha -= 0.02;
-        if (levelUpAlpha < 0) levelUpAlpha = 0;
-      }
-    }
-
-    function drawInstructions() {
-      ctx.fillStyle = '#77C043';
-      ctx.font = '32px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText("Welcome to Hexad's Fiber Rush!", width / 2, height / 2 - 40);
-      ctx.font = '20px monospace';
-      ctx.fillText("Dodge network obstacles and collect New Subscribers for bonus points.", width / 2, height / 2);
-      ctx.fillText("Use ↑ and ↓ keys to move lanes.", width / 2, height / 2 + 30);
-      ctx.fillText("Press any key to begin!", width / 2, height / 2 + 60);
-    }
-
-    function draw() {
-      drawBackground();
-      drawLanes();
-      if (gameStarted) {
-        drawPlayer();
-        obstacles.forEach(drawObstacle);
-        drawBonus();
-        drawLevelUpMessage();
-      } else {
-        drawInstructions();
-      }
-    }
-
-    function spawnObstacles() {
-      let laneOptions = [0, 1, 2].sort(() => Math.random() - 0.5);
-      let blockCount = Math.random() < 0.75 ? 1 : 2;
-
-      if (blockCount >= laneOptions.length) {
-        blockCount = laneOptions.length - 1;
-      }
-
-      for (let i = 0; i < blockCount; i++) {
-        let lane = laneOptions[i];
-        obstacles.push({ x: width + 30, lane: lane });
-      }
-    }
-
-    function update() {
-      obstacles.forEach(ob => ob.x -= obstacleSpeed);
-      obstacles = obstacles.filter(ob => ob.x > -50);
-
-      spawnTimer--;
-      if (spawnTimer <= 0) {
-        spawnObstacles();
-        spawnTimer = spawnDelay;
-      }
-
-      if (bonus) {
-        bonus.x -= obstacleSpeed;
-
-        if (
-          bonus.x < playerX + playerRadius &&
-          bonus.x + 30 > playerX - playerRadius &&
-          bonus.lane === playerLane
-        ) {
-          score += 500;
-          bonus = null;
-        }
-
-        if (bonus && bonus.x < -50) {
-          bonus = null;
-        }
-      }
-
-      obstacles.forEach(ob => {
-        if (ob.x < playerX + playerRadius &&
-            ob.x + 30 > playerX - playerRadius &&
-            ob.lane === playerLane) {
-          gameOver = true;
-          clearInterval(levelTimer);
-          music.pause();
-          music.currentTime = 0;
-        }
-      });
-
-      score++;
-      document.getElementById('score').innerText = `Score: ${score} | Level: ${level}`;
-    }
-
-    function loop() {
-      if (!gameStarted) {
-        draw();
-        requestAnimationFrame(loop);
-        return;
-      }
-
-      if (gameOver) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '48px monospace';
-        ctx.fillText('SIGNAL LOST!', width / 2 - 150, height / 2);
-        ctx.font = '24px monospace';
-        ctx.fillText('Press any key to retry', width / 2 - 110, height / 2 + 40);
-        return;
-      }
-
-      update();
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    window.addEventListener('keydown', e => {
-      if (!gameStarted) {
-        gameStarted = true;
-        document.getElementById('score').style.display = 'block';
-        music.play();
-        resetGame();
-        return;
-      }
-
-      if (gameOver) {
-        gameStarted = false;
-        document.getElementById('score').style.display = 'none';
-        resetGame();
-        return;
-      }
-
-      if (e.key === 'ArrowUp' && playerLane > 0) {
-        playerLane--;
-      } else if (e.key === 'ArrowDown' && playerLane < laneCount - 1) {
-        playerLane++;
-      }
-    });
-
-    window.addEventListener('resize', () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-      laneHeight = height / laneCount;
-    });
+    document.getElementById('score').style.display = 'block';
 
     loop();
-  </script>
+  }
+
+  function increaseDifficulty() {
+    if (gameOver) return;
+    level++;
+    obstacleSpeed += 0.5;
+    spawnDelay = Math.max(20, spawnDelay - 5);
+
+    levelUpMessage = `LEVEL ${level}`;
+    levelUpAlpha = 1;
+
+    spawnBonus();
+  }
+
+  function spawnBonus() {
+    let safeLanes = [0, 1, 2];
+
+    obstacles.forEach(ob => {
+      if (ob.x > width / 2 - 200) {
+        safeLanes = safeLanes.filter(lane => lane !== ob.lane);
+      }
+    });
+
+    if (safeLanes.length > 0) {
+      let lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+      bonus = {
+        x: width + 30,
+        lane: lane
+      };
+    }
+  }
+
+  function drawBackground() {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+
+    bgOffset += 2;
+    if (bgOffset > 40) bgOffset = 0;
+
+    for (let x = -40; x < width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x + bgOffset, 0);
+      ctx.lineTo(x + bgOffset, height);
+      ctx.stroke();
+    }
+  }
+
+  function drawLanes() {
+    for (let i = 1; i < laneCount; i++) {
+      ctx.strokeStyle = '#77C04388';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#77C043';
+      ctx.beginPath();
+      ctx.moveTo(0, laneHeight * i);
+      ctx.lineTo(width, laneHeight * i);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  function drawPlayer() {
+    const centerY = laneHeight * (playerLane + 0.5);
+    const imgSize = playerRadius * 3.5;
+    ctx.drawImage(playerImage, playerX - imgSize / 2, centerY - imgSize / 2, imgSize, imgSize);
+  }
+
+  function getObstacleColor() {
+    const hue = (score * 0.1 + level * 40) % 60 + 90;
+    return `hsl(${hue}, 80%, 50%)`;
+  }
+
+  function drawObstacle(ob) {
+    let gradient = ctx.createLinearGradient(ob.x, 0, ob.x + 30, 0);
+    gradient.addColorStop(0, '#66cc33');
+    gradient.addColorStop(1, '#88ff66');
+
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = '#77C043';
+    ctx.shadowBlur = 15;
+    ctx.fillRect(ob.x, laneHeight * ob.lane + 10, 30, laneHeight - 20);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawBonus() {
+    if (!bonus) return;
+
+    const hue = (score * 2) % 360;
+    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 15;
+
+    ctx.beginPath();
+    ctx.rect(bonus.x, laneHeight * bonus.lane + laneHeight / 2 - 15, 30, 30);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px monospace';
+    ctx.fillText("SUB", bonus.x + 4, laneHeight * bonus.lane + laneHeight / 2 + 4);
+  }
+
+  function drawLevelUpMessage() {
+    if (levelUpAlpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = levelUpAlpha;
+      ctx.fillStyle = '#77C043';
+      ctx.font = '48px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(levelUpMessage, width / 2, height / 2);
+      ctx.restore();
+      levelUpAlpha -= 0.02;
+      if (levelUpAlpha < 0) levelUpAlpha = 0;
+    }
+  }
+
+  function drawInstructions() {
+    ctx.fillStyle = '#77C043';
+    ctx.font = '32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText("Welcome to Hexad's Fiber Rush!", width / 2, height / 2 - 40);
+    ctx.font = '20px monospace';
+    ctx.fillText("Dodge network obstacles and collect New Subscribers for bonus points.", width / 2, height / 2);
+    ctx.fillText("Use ↑ and ↓ keys to move lanes.", width / 2, height / 2 + 30);
+    ctx.fillText("Press any key to begin!", width / 2, height / 2 + 60);
+  }
+
+  function draw() {
+    drawBackground();
+    drawLanes();
+    if (gameStarted) {
+      drawPlayer();
+      obstacles.forEach(drawObstacle);
+      drawBonus();
+      drawLevelUpMessage();
+    } else {
+      drawInstructions();
+    }
+  }
+
+  function spawnObstacles() {
+    let laneOptions = [0, 1, 2].sort(() => Math.random() - 0.5);
+    let blockCount;
+
+    if (level === 1) {
+      blockCount = 1; // Easier Level 1: only 1 obstacle
+    } else {
+      blockCount = Math.random() < 0.75 ? 1 : 2;
+    }
+
+    if (blockCount >= laneOptions.length) {
+      blockCount = laneOptions.length - 1;
+    }
+
+    for (let i = 0; i < blockCount; i++) {
+      let lane = laneOptions[i];
+      obstacles.push({ x: width + 30, lane: lane });
+    }
+  }
+
+  function update() {
+    obstacles.forEach(ob => ob.x -= obstacleSpeed);
+    obstacles = obstacles.filter(ob => ob.x > -50);
+
+    spawnTimer--;
+    if (spawnTimer <= 0) {
+      spawnObstacles();
+      spawnTimer = spawnDelay;
+    }
+
+    if (bonus) {
+      bonus.x -= obstacleSpeed;
+
+      if (
+        bonus.x < playerX + playerRadius &&
+        bonus.x + 30 > playerX - playerRadius &&
+        bonus.lane === playerLane
+      ) {
+        score += 500;
+        bonus = null;
+      }
+
+      if (bonus && bonus.x < -50) {
+        bonus = null;
+      }
+    }
+
+    obstacles.forEach(ob => {
+      if (ob.x < playerX + playerRadius &&
+          ob.x + 30 > playerX - playerRadius &&
+          ob.lane === playerLane) {
+        gameOver = true;
+        clearInterval(levelTimer);
+        music.pause();
+        music.currentTime = 0;
+        learnMoreLink.style.display = "block";
+      }
+    });
+
+    score++;
+    document.getElementById('score').innerText = `Score: ${score} | Level: ${level}`;
+  }
+
+  function loop() {
+    if (!gameStarted) {
+      draw();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = '48px monospace';
+      ctx.fillText('SIGNAL LOST!', width / 2, height / 2 - 100);
+
+      ctx.font = '28px monospace';
+      ctx.fillText(`Score: ${score}`, width / 2, height / 2 - 60);
+
+      ctx.font = '20px monospace';
+      ctx.fillText('Hexad could have prevented this outage.', width / 2, height / 2 - 20);
+      ctx.fillText('Partner with us to keep your network strong.', width / 2, height / 2 + 10);
+
+      ctx.font = '20px monospace';
+      ctx.fillText('Press any key to retry.', width / 2, height / 2 + 50);
+      return;
+    }
+
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('keydown', e => {
+    if (!gameStarted) {
+      gameStarted = true;
+      document.getElementById('score').style.display = 'block';
+      music.play();
+      resetGame();
+      return;
+    }
+
+    if (gameOver) {
+      gameStarted = false;
+      document.getElementById('score').style.display = 'none';
+      learnMoreLink.style.display = "none";
+      resetGame();
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && playerLane > 0) {
+      playerLane--;
+    } else if (e.key === 'ArrowDown' && playerLane < laneCount - 1) {
+      playerLane++;
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    laneHeight = height / laneCount;
+  });
+
+  loop();
+</script>
+
 </body>
 </html>
