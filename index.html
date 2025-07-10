@@ -161,26 +161,27 @@
     ctx.drawImage(playerImage, playerX - imgSize / 2, centerY - imgSize / 2, imgSize, imgSize);
   }
 
-  function drawObstacle(ob) {
-    let gradient = ctx.createLinearGradient(ob.x, 0, ob.x + 30, 0);
-    gradient.addColorStop(0, '#66cc33');
-    gradient.addColorStop(1, '#88ff66');
+function drawObstacle(ob) {
+  let gradient = ctx.createLinearGradient(ob.x, 0, ob.x + 40, 0);
+  gradient.addColorStop(0, '#66cc33');
+  gradient.addColorStop(1, '#88ff66');
 
-    ctx.fillStyle = gradient;
-    ctx.shadowColor = '#77C043';
-    ctx.shadowBlur = 15;
-    ctx.fillRect(ob.x, laneHeight * ob.lane + 10, 30, laneHeight - 20);
-    ctx.shadowBlur = 0;
+  ctx.fillStyle = gradient;
+  ctx.shadowColor = '#77C043';
+  ctx.shadowBlur = 15;
+  ctx.fillRect(ob.x, laneHeight * ob.lane + 10, 40, laneHeight - 20);
+  ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '12px monospace';
-    ctx.save();
-    ctx.translate(ob.x + 15, laneHeight * ob.lane + laneHeight / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillText(ob.text, 0, 0);
-    ctx.restore();
-  }
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '18px monospace'; // Increased from 12px
+  ctx.save();
+  ctx.translate(ob.x + 20, laneHeight * ob.lane + laneHeight / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText(ob.text, 0, 0);
+  ctx.restore();
+}
+
 
   function drawLevelUpMessage() {
     if (levelUpAlpha > 0) {
