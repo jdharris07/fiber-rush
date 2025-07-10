@@ -48,9 +48,9 @@
   const playerRadius = 20;
 
   let obstacles = [];
-  let baseSpeed = 4; // Easier Level 1 speed
+  let baseSpeed = 4;
   let obstacleSpeed = baseSpeed;
-  let baseSpawnDelay = 80; // Easier Level 1 spawn delay
+  let baseSpawnDelay = 80;
   let spawnDelay = baseSpawnDelay;
   let spawnTimer = 0;
 
@@ -59,14 +59,15 @@
   let gameOver = false;
   let gameStarted = false;
 
-  let lastLanes = [];
   let bgOffset = 0;
   let levelTimer;
 
-  let bonus = null;
-
   let levelUpMessage = '';
   let levelUpAlpha = 0;
+
+  const obstacleTexts = [
+    "Permitting", "Budget", "Field Data", "Supply Chain", "Staffing", "Weather", "Make Ready", "Design", "Coordination"
+  ];
 
   const playerImage = new Image();
   playerImage.src = 'image001.png';
@@ -99,8 +100,6 @@
     spawnDelay = baseSpawnDelay;
     spawnTimer = 0;
     gameOver = false;
-    lastLanes = [];
-    bonus = null;
     levelUpMessage = '';
     levelUpAlpha = 0;
 
@@ -122,26 +121,6 @@
 
     levelUpMessage = `LEVEL ${level}`;
     levelUpAlpha = 1;
-
-    spawnBonus();
-  }
-
-  function spawnBonus() {
-    let safeLanes = [0, 1, 2];
-
-    obstacles.forEach(ob => {
-      if (ob.x > width / 2 - 200) {
-        safeLanes = safeLanes.filter(lane => lane !== ob.lane);
-      }
-    });
-
-    if (safeLanes.length > 0) {
-      let lane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
-      bonus = {
-        x: width + 30,
-        lane: lane
-      };
-    }
   }
 
   function drawBackground() {
@@ -182,11 +161,6 @@
     ctx.drawImage(playerImage, playerX - imgSize / 2, centerY - imgSize / 2, imgSize, imgSize);
   }
 
-  function getObstacleColor() {
-    const hue = (score * 0.1 + level * 40) % 60 + 90;
-    return `hsl(${hue}, 80%, 50%)`;
-  }
-
   function drawObstacle(ob) {
     let gradient = ctx.createLinearGradient(ob.x, 0, ob.x + 30, 0);
     gradient.addColorStop(0, '#66cc33');
@@ -197,24 +171,15 @@
     ctx.shadowBlur = 15;
     ctx.fillRect(ob.x, laneHeight * ob.lane + 10, 30, laneHeight - 20);
     ctx.shadowBlur = 0;
-  }
 
-  function drawBonus() {
-    if (!bonus) return;
-
-    const hue = (score * 2) % 360;
-    ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-    ctx.shadowColor = ctx.fillStyle;
-    ctx.shadowBlur = 15;
-
-    ctx.beginPath();
-    ctx.rect(bonus.x, laneHeight * bonus.lane + laneHeight / 2 - 15, 30, 30);
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px monospace';
-    ctx.fillText("SUB", bonus.x + 4, laneHeight * bonus.lane + laneHeight / 2 + 4);
+    ctx.save();
+    ctx.translate(ob.x + 15, laneHeight * ob.lane + laneHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
+    ctx.fillText(ob.text, 0, 0);
+    ctx.restore();
   }
 
   function drawLevelUpMessage() {
@@ -237,9 +202,22 @@
     ctx.textAlign = 'center';
     ctx.fillText("Welcome to Hexad's Fiber Rush!", width / 2, height / 2 - 40);
     ctx.font = '20px monospace';
-    ctx.fillText("Dodge network obstacles and collect New Subscribers for bonus points.", width / 2, height / 2);
+    ctx.fillText("Dodge network obstacles.", width / 2, height / 2);
     ctx.fillText("Use ↑ and ↓ keys to move lanes.", width / 2, height / 2 + 30);
     ctx.fillText("Press any key to begin!", width / 2, height / 2 + 60);
+  }
+
+  function drawLeaderboard() {
+    let leaderboard = JSON.parse(localStorage.getItem('fiberRushLeaderboard')) || [];
+    ctx.fillStyle = '#77C043';
+    ctx.font = '24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Leaderboard', width / 2, height / 2 + 100);
+
+    ctx.font = '18px monospace';
+    leaderboard.slice(0, 5).forEach((entry, index) => {
+      ctx.fillText(`${index + 1}. ${entry.initials} - ${entry.score}`, width / 2, height / 2 + 130 + index * 25);
+    });
   }
 
   function draw() {
@@ -248,7 +226,6 @@
     if (gameStarted) {
       drawPlayer();
       obstacles.forEach(drawObstacle);
-      drawBonus();
       drawLevelUpMessage();
     } else {
       drawInstructions();
@@ -260,7 +237,7 @@
     let blockCount;
 
     if (level === 1) {
-      blockCount = 1; // Easier Level 1: only 1 obstacle
+      blockCount = 1;
     } else {
       blockCount = Math.random() < 0.75 ? 1 : 2;
     }
@@ -271,7 +248,8 @@
 
     for (let i = 0; i < blockCount; i++) {
       let lane = laneOptions[i];
-      obstacles.push({ x: width + 30, lane: lane });
+      let text = obstacleTexts[Math.floor(Math.random() * obstacleTexts.length)];
+      obstacles.push({ x: width + 30, lane: lane, text: text });
     }
   }
 
@@ -285,23 +263,6 @@
       spawnTimer = spawnDelay;
     }
 
-    if (bonus) {
-      bonus.x -= obstacleSpeed;
-
-      if (
-        bonus.x < playerX + playerRadius &&
-        bonus.x + 30 > playerX - playerRadius &&
-        bonus.lane === playerLane
-      ) {
-        score += 500;
-        bonus = null;
-      }
-
-      if (bonus && bonus.x < -50) {
-        bonus = null;
-      }
-    }
-
     obstacles.forEach(ob => {
       if (ob.x < playerX + playerRadius &&
           ob.x + 30 > playerX - playerRadius &&
@@ -311,6 +272,18 @@
         music.pause();
         music.currentTime = 0;
         learnMoreLink.style.display = "block";
+
+        setTimeout(() => {
+          let initials = prompt("Game Over! Enter your initials (max 3 letters):", "").toUpperCase().slice(0, 3);
+          if (initials) {
+            let leaderboard = JSON.parse(localStorage.getItem('fiberRushLeaderboard')) || [];
+            leaderboard.push({ initials, score });
+            leaderboard.sort((a, b) => b.score - a.score);
+            localStorage.setItem('fiberRushLeaderboard', JSON.stringify(leaderboard));
+          }
+          drawLeaderboard();
+        }, 100);
+
       }
     });
 
@@ -330,16 +303,14 @@
       ctx.textAlign = 'center';
       ctx.font = '48px monospace';
       ctx.fillText('SIGNAL LOST!', width / 2, height / 2 - 100);
-
       ctx.font = '28px monospace';
       ctx.fillText(`Score: ${score}`, width / 2, height / 2 - 60);
-
       ctx.font = '20px monospace';
       ctx.fillText('Hexad could have prevented this outage.', width / 2, height / 2 - 20);
       ctx.fillText('Partner with us to keep your network strong.', width / 2, height / 2 + 10);
-
-      ctx.font = '20px monospace';
       ctx.fillText('Press any key to retry.', width / 2, height / 2 + 50);
+
+      drawLeaderboard();
       return;
     }
 
@@ -380,6 +351,5 @@
 
   loop();
 </script>
-
 </body>
 </html>
